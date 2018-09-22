@@ -24,7 +24,6 @@ void loop() {
     Serial.println(temperature);
     oldTemperature = temperature;
   }
-
   
   if(temperature < baselineTemp) {
     digitalWrite(2, LOW);
