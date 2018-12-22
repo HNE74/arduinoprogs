@@ -1,7 +1,8 @@
+#define STATE_START 0
 #define STATE_RECEIVE_COMMANDS 1
 #define STATE_WAIT 2
 #define STATE_HANDLE_COMMANDS 3
-int state = STATE_RECEIVE_COMMANDS;
+int state = STATE_START;
 
 #define COMMAND_DELIMITER "X"
 #define COMMAND_PARAM_DELIMITER ","
@@ -39,7 +40,11 @@ void setup() {
 }
 
 void loop() { 
-  if(state == STATE_RECEIVE_COMMANDS) {
+  if(state == STATE_START) {
+    Serial.println("STATE_RECEIVE_COMMANDS");
+    state = STATE_RECEIVE_COMMANDS; 
+  }
+  else if(state == STATE_RECEIVE_COMMANDS) {
     if(receiveCommands()) {
       Serial.println("STATE_WAIT");
       state = STATE_WAIT;
