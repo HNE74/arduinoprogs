@@ -2,7 +2,12 @@
 #define STATE_RECEIVE_COMMANDS 1
 #define STATE_WAIT 2
 #define STATE_HANDLE_COMMANDS 3
+
+#define CONTROL_MODE_BATCH "b"
+#define CONTROL_MODE_DIRECT "d"
+
 int state = STATE_START;
+String controlMode = CONTROL_MODE_DIRECT;
 
 #define COMMAND_DELIMITER "X"
 #define COMMAND_PARAM_DELIMITER ","
@@ -37,6 +42,8 @@ void setup() {
 
   stopLeft();
   stopRight();
+
+  Serial.println("Control mode: " + controlMode);
 }
 
 void loop() { 
@@ -44,7 +51,39 @@ void loop() {
     Serial.println("STATE_RECEIVE_COMMANDS");
     state = STATE_RECEIVE_COMMANDS; 
   }
-  else if(state == STATE_RECEIVE_COMMANDS) {
+  else if(controlMode == CONTROL_MODE_BATCH) {
+    batchMode();
+  }
+  else if(controlMode == CONTROL_MODE_DIRECT) {
+    directMode();
+  }
+}
+
+void directMode() {
+  if(Serial.available() > 0) {
+    String command = Serial.readString();
+    Serial.println("Command: " + command);
+
+    if(command.startsWith(CONTROL_MODE_BATCH)) {
+      controlMode = CONTROL_MODE_BATCH;
+      Serial.println("Control mode set to batch.");
+      stopLeft();
+      stopRight();      
+      return;
+    }
+    
+    parseCommand(command);
+  }
+  
+  processCommand();  
+}
+
+/**
+ * Robot control in batch mode. The robot receives one or more commands, 
+ * evaluates and executes them after a certain wait time.
+ */
+void batchMode() {
+  if(state == STATE_RECEIVE_COMMANDS) {
     if(receiveCommands()) {
       Serial.println("STATE_WAIT");
       state = STATE_WAIT;
@@ -61,7 +100,7 @@ void loop() {
       Serial.println("STATE_RECEIVE_COMMANDS");
       state = STATE_RECEIVE_COMMANDS;
     }
-  }
+  }  
 }
 
 /**
@@ -92,7 +131,13 @@ boolean receiveCommands() {
     String commands = Serial.readString();
     Serial.println("Command sequence: " + commands);
 
-    if(commands.indexOf(COMMAND_DELIMITER) == -1) {
+    if(commands.startsWith(CONTROL_MODE_DIRECT)) {
+      controlMode = CONTROL_MODE_DIRECT;
+      Serial.println("Control mode set to direct.");
+      stopLeft();
+      stopRight();
+      return false;
+    } else if(commands.indexOf(COMMAND_DELIMITER) == -1) {
       waitDuration=commands.toInt();
       Serial.println("Command execution wait duration set to: " + String(waitDuration));
       return false;
@@ -152,6 +197,9 @@ boolean handleCommands() {
   return true;
 }
 
+/**
+ * Translates the current command parameters to robot control commands.
+ */
 void processCommand() {
   if(dirRight == 1) {
     forwardRight(speedRight); 
@@ -174,8 +222,10 @@ void processCommand() {
   }  
 }
 
-void parseCommand(int ndx) {
-  String cmd = cmdList[ndx];
+/**
+ * Parses the provided robot command
+ */
+void parseCommand(String cmd) {
   int oldPos = -1;
   int pos = cmd.indexOf(COMMAND_PARAM_DELIMITER);
   dirRight = cmd.substring(0, pos).toInt();
@@ -202,6 +252,11 @@ void parseCommand(int ndx) {
 
   String info = String("Command: right motor=" + String(dirRight) + "," + String(speedRight) + " left motor=" + String(dirLeft) + "," + String(speedLeft) + " duration=" + String(duration));
   Serial.println(info); 
+}
+
+void parseCommand(int ndx) {
+  String cmd = cmdList[ndx];
+  parseCommand(cmd);
 }
 
 /**
