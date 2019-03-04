@@ -6,8 +6,13 @@
 #define CONTROL_MODE_BATCH "b"
 #define CONTROL_MODE_DIRECT "d"
 
+#define INPUT_MODE_SERIAL_STRING "s"
+#define INPUT_MODE_SERIAL_CHAR "c"
+
 int state = STATE_START;
 String controlMode = CONTROL_MODE_DIRECT;
+String inputMode = INPUT_MODE_SERIAL_CHAR;
+
 
 #define COMMAND_DELIMITER "X"
 #define COMMAND_PARAM_DELIMITER ","
@@ -61,7 +66,7 @@ void loop() {
 
 void directMode() {
   if(Serial.available() > 0) {
-    String command = Serial.readString();
+    String command = fetchCommandFromSerial();
     Serial.println("Command: " + command);
 
     if(command.startsWith(CONTROL_MODE_BATCH)) {
@@ -76,6 +81,35 @@ void directMode() {
   }
   
   processCommand();  
+}
+
+/**
+ * Reads robot command from serial input depending on the input mode.
+ * If the mode is s-String, the command is read directly, if it is c-character,
+ * the command is read character by character.
+ */
+String fetchCommandFromSerial() {
+  if(inputMode == INPUT_MODE_SERIAL_STRING) {
+    return Serial.readString();
+  }
+  else {
+    char inData[20]; 
+    char inChar=-1;
+    byte index = 0;
+    while (Serial.available() > 0) {
+      if(index < 19)
+      {
+        inChar = Serial.read(); 
+        inData[index] = inChar; 
+        index++; 
+        inData[index] = '\0'; 
+        delay(10);
+      }
+    }
+    String cmdTxt(inData);
+    Serial.println("Received command String: " + cmdTxt);
+    return cmdTxt;   
+  }
 }
 
 /**
@@ -128,7 +162,7 @@ boolean receiveCommands() {
   int oldPos=0;
   int pos=0;
   if(Serial.available() > 0) {
-    String commands = Serial.readString();
+    String commands = fetchCommandFromSerial();
     Serial.println("Command sequence: " + commands);
 
     if(commands.startsWith(CONTROL_MODE_DIRECT)) {
